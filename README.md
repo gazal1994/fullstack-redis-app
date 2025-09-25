@@ -28,7 +28,12 @@ All images are publicly available at: **https://hub.docker.com/repositories/gaza
 Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/gazal1994/fullstack-redis-app/main/install.ps1'))
 ```
 
-#### macOS/Linux (Bash)
+#### macOS (Bash)
+```bash
+curl -fsSL https://raw.githubusercontent.com/gazal1994/fullstack-redis-app/main/install.sh | bash
+```
+
+#### Linux (Bash)
 ```bash
 curl -fsSL https://raw.githubusercontent.com/gazal1994/fullstack-redis-app/main/install.sh | bash
 ```
@@ -65,7 +70,7 @@ cd fullstack-redis-app
 .\deploy.ps1
 ```
 
-#### macOS/Linux (Bash)
+#### macOS (Bash)
 ```bash
 # Clone the repository
 git clone https://github.com/gazal1994/fullstack-redis-app.git
@@ -73,6 +78,19 @@ cd fullstack-redis-app
 
 # Make script executable and run
 chmod +x deploy.sh
+./deploy.sh
+```
+
+#### Linux (Bash)
+```bash
+# Clone the repository
+git clone https://github.com/gazal1994/fullstack-redis-app.git
+cd fullstack-redis-app
+
+# Make script executable and run
+chmod +x deploy.sh
+./deploy.sh
+```
 ./deploy.sh
 ```
 
@@ -209,6 +227,21 @@ docker-compose build
 # Build specific service
 docker-compose build backend
 ```
+
+## 📚 Platform-Specific Documentation
+
+For detailed platform-specific instructions and troubleshooting:
+
+- **🪟 Windows**: [POWERSHELL-SCRIPTS.md](POWERSHELL-SCRIPTS.md) & [POWERSHELL-DEPLOYMENT.md](POWERSHELL-DEPLOYMENT.md)
+- **🍎 macOS**: [MACOS-DEPLOYMENT.md](MACOS-DEPLOYMENT.md)  
+- **🐧 Linux**: [LINUX-DEPLOYMENT.md](LINUX-DEPLOYMENT.md)
+
+Each guide includes:
+- Prerequisites installation
+- Step-by-step deployment
+- Troubleshooting common issues
+- Platform-specific optimizations
+- Advanced configuration options
 
 ## 🤝 Contributing
 
