@@ -21,6 +21,13 @@ All images are publicly available at: **https://hub.docker.com/repositories/gaza
 
 ## 🚀 Quick Start
 
+### Option 1: Remote One-Command Installation (Windows PowerShell)
+```powershell
+Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://raw.githubusercontent.com/gazal1994/fullstack-redis-app/main/install.ps1'))
+```
+
+### Option 2: Manual Clone and Deploy
+
 ### Prerequisites
 - Docker and Docker Compose installed
 - Ports 3000, 5000, 27017, 6379 available
@@ -28,15 +35,25 @@ All images are publicly available at: **https://hub.docker.com/repositories/gaza
 ### Deploy the Application
 
 ```bash
-# Clone or download this repository
-git clone <your-repo-url>
-cd fullstack-app
+# Clone the repository
+git clone https://github.com/gazal1994/fullstack-redis-app.git
+cd fullstack-redis-app
 
 # Start all services
 docker-compose up -d
 
 # Check status
 docker-compose ps
+```
+
+### Option 3: PowerShell Deployment (Windows)
+```powershell
+# Clone the repository
+git clone https://github.com/gazal1994/fullstack-redis-app.git
+cd fullstack-redis-app
+
+# Run deployment script
+.\deploy.ps1
 ```
 
 ### Access Your Application
