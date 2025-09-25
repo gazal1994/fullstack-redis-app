@@ -1,7 +1,7 @@
-# 🚀 Remote Installation Script for Full-Stack Application
+# Remote Installation Script for Full-Stack Application
 # Downloads and runs the complete deployment automatically
 
-Write-Host "🚀 Full-Stack Application Installer" -ForegroundColor Green
+Write-Host "Full-Stack Application Installer" -ForegroundColor Green
 Write-Host "Downloading and deploying complete application..." -ForegroundColor Yellow
 
 # Set installation directory
@@ -9,16 +9,16 @@ $installPath = "C:\fullstack-app"
 
 # Create installation directory
 if (Test-Path $installPath) {
-    Write-Host "⚠️  Directory $installPath already exists. Removing old installation..." -ForegroundColor Yellow
+    Write-Host "Directory $installPath already exists. Removing old installation..." -ForegroundColor Yellow
     Remove-Item -Recurse -Force $installPath
 }
 
 # Clone the repository
-Write-Host "📥 Cloning repository..." -ForegroundColor Cyan
+Write-Host "Cloning repository..." -ForegroundColor Cyan
 git clone https://github.com/gazal1994/fullstack-redis-app.git $installPath
 
 if (-not (Test-Path $installPath)) {
-    Write-Host "❌ Failed to clone repository. Please check your internet connection and Git installation." -ForegroundColor Red
+    Write-Host "Failed to clone repository. Please check your internet connection and Git installation." -ForegroundColor Red
     exit 1
 }
 
@@ -26,7 +26,7 @@ if (-not (Test-Path $installPath)) {
 Set-Location $installPath
 
 # Run deployment script
-Write-Host "🚀 Starting deployment..." -ForegroundColor Green
+Write-Host "Starting deployment..." -ForegroundColor Green
 & .\deploy.ps1
 
-Write-Host "✅ Installation complete! Application should be running at http://localhost:3000" -ForegroundColor Green
+Write-Host "Installation complete! Application should be running at http://localhost:3000" -ForegroundColor Green
