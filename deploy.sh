@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 🚀 Full-Stack Application Deployment Script for macOS/Linux
+# Full-Stack Application Deployment Script for macOS/Linux
 # Deploys React+Redux+TypeScript frontend, Node.js+Express+Redis+MongoDB backend
 
 set -e  # Exit on any error
@@ -15,25 +15,25 @@ NC='\033[0m' # No Color
 
 # Function to print colored output
 print_status() {
-    echo -e "${GREEN}✅ $1${NC}"
+    echo -e "${GREEN}[SUCCESS] $1${NC}"
 }
 
 print_info() {
-    echo -e "${BLUE}ℹ️  $1${NC}"
+    echo -e "${BLUE}[INFO] $1${NC}"
 }
 
 print_warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
+    echo -e "${YELLOW}[WARNING] $1${NC}"
 }
 
 print_error() {
-    echo -e "${RED}❌ $1${NC}"
+    echo -e "${RED}[ERROR] $1${NC}"
 }
 
 print_header() {
     echo -e "${CYAN}"
     echo "=============================================="
-    echo "🚀 Full-Stack Application Deployment"
+    echo "Full-Stack Application Deployment"
     echo "=============================================="
     echo -e "${NC}"
 }
@@ -49,7 +49,7 @@ check_docker() {
     
     if ! command_exists docker; then
         print_error "Docker is not installed!"
-        echo "Please install Docker Desktop for Mac from: https://www.docker.com/products/docker-desktop"
+        echo "Please install Docker Desktop from: https://www.docker.com/products/docker-desktop"
         exit 1
     fi
     
@@ -93,7 +93,7 @@ check_ports() {
     local blocked_ports=()
     
     for port in "${ports[@]}"; do
-        if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+        if lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1 || netstat -an | grep ":$port " >/dev/null 2>&1; then
             blocked_ports+=($port)
         fi
     done
@@ -266,13 +266,12 @@ wait_for_services() {
     local attempt=0
     
     while [ $attempt -lt $max_attempts ]; do
-        if $COMPOSE_CMD ps | grep -q "healthy"; then
-            # Check if all services are healthy
-            local unhealthy_count=$($COMPOSE_CMD ps --format table | grep -c "unhealthy" || echo "0")
-            if [ "$unhealthy_count" -eq 0 ]; then
-                print_status "All services are healthy!"
-                return 0
-            fi
+        local healthy_count=$($COMPOSE_CMD ps --format table | grep -c "healthy" || echo "0")
+        local total_services=4
+        
+        if [ "$healthy_count" -ge 3 ]; then  # Allow frontend to be starting
+            print_status "Services are ready!"
+            return 0
         fi
         
         echo -n "."
@@ -280,14 +279,14 @@ wait_for_services() {
         ((attempt++))
     done
     
-    print_warning "Some services may not be fully healthy yet. Check status with: $COMPOSE_CMD ps"
+    print_warning "Services may not be fully healthy yet. Check status with: $COMPOSE_CMD ps"
 }
 
 # Function to display service status
 show_status() {
     echo -e "${CYAN}"
     echo "=============================================="
-    echo "📊 Service Status"
+    echo "Service Status"
     echo "=============================================="
     echo -e "${NC}"
     
@@ -296,14 +295,13 @@ show_status() {
     echo ""
     echo -e "${CYAN}"
     echo "=============================================="
-    echo "🌐 Application URLs"
+    echo "Application URLs"
     echo "=============================================="
     echo -e "${NC}"
     
     echo "Frontend Application: http://localhost:3000"
     echo "Backend API:         http://localhost:5000"
     echo "API Health Check:    http://localhost:5000/health"
-    echo "API Documentation:   http://localhost:5000/api/docs (if available)"
 }
 
 # Function to open browser (macOS)
@@ -312,6 +310,10 @@ open_browser() {
         print_info "Opening application in default browser..."
         sleep 3  # Wait a moment for services to be ready
         open "http://localhost:3000" 2>/dev/null || true
+    elif command_exists xdg-open; then
+        print_info "Opening application in default browser..."
+        sleep 3
+        xdg-open "http://localhost:3000" 2>/dev/null || true
     fi
 }
 
@@ -319,7 +321,7 @@ open_browser() {
 show_management_commands() {
     echo -e "${CYAN}"
     echo "=============================================="
-    echo "🛠️  Management Commands"
+    echo "Management Commands"
     echo "=============================================="
     echo -e "${NC}"
     
@@ -357,7 +359,7 @@ main() {
     
     echo -e "${GREEN}"
     echo "=============================================="
-    echo "🎉 Deployment Complete!"
+    echo "Deployment Complete!"
     echo "=============================================="
     echo -e "${NC}"
     echo "Your full-stack application is now running!"

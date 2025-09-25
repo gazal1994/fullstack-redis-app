@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 🚀 Remote Installation Script for Full-Stack Application (macOS/Linux)
+# Remote Installation Script for Full-Stack Application (macOS/Linux)
 # Downloads and runs the complete deployment automatically
 
 set -e
@@ -14,25 +14,25 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 print_status() {
-    echo -e "${GREEN}✅ $1${NC}"
+    echo -e "${GREEN}[SUCCESS] $1${NC}"
 }
 
 print_info() {
-    echo -e "${BLUE}ℹ️  $1${NC}"
+    echo -e "${BLUE}[INFO] $1${NC}"
 }
 
 print_warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
+    echo -e "${YELLOW}[WARNING] $1${NC}"
 }
 
 print_error() {
-    echo -e "${RED}❌ $1${NC}"
+    echo -e "${RED}[ERROR] $1${NC}"
 }
 
 print_header() {
     echo -e "${CYAN}"
     echo "=============================================="
-    echo "🚀 Full-Stack Application Installer (macOS)"
+    echo "Full-Stack Application Installer (macOS/Linux)"
     echo "=============================================="
     echo -e "${NC}"
 }
@@ -65,7 +65,7 @@ if [ -d "$INSTALL_PATH" ]; then
 fi
 
 # Clone the repository
-print_info "📥 Cloning repository..."
+print_info "Cloning repository..."
 if ! git clone https://github.com/gazal1994/fullstack-redis-app.git "$INSTALL_PATH"; then
     print_error "Failed to clone repository. Please check your internet connection."
     exit 1
@@ -78,7 +78,7 @@ cd "$INSTALL_PATH"
 chmod +x deploy.sh
 
 # Run deployment script
-print_info "🚀 Starting deployment..."
+print_info "Starting deployment..."
 ./deploy.sh
 
 print_status "Installation complete! Application should be running at http://localhost:3000"
