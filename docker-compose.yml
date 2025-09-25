@@ -1,4 +1,7 @@
-﻿services:
+﻿version: '3.8'
+
+services:
+  # MongoDB Database
   mongodb:
     image: gazal94/mongo:7.0
     container_name: fullstack-mongodb
@@ -20,11 +23,12 @@
       retries: 5
       start_period: 10s
 
+  # Redis Cache
   redis:
     image: gazal94/redis:7-alpine
     container_name: fullstack-redis
     restart: unless-stopped
-    command: redis-server --requirepass redis123 --appendonly yes
+    command: redis-server --appendonly yes --requirepass redis123
     ports:
       - "6379:6379"
     volumes:
@@ -34,9 +38,11 @@
     healthcheck:
       test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
       interval: 10s
-      timeout: 5s
+      timeout: 3s
       retries: 5
+      start_period: 10s
 
+  # Backend API Server
   backend:
     image: gazal94/fullstack-backend:latest
     container_name: fullstack-backend
@@ -48,6 +54,9 @@
       REDIS_URL: redis://:redis123@redis:6379
     ports:
       - "5000:5000"
+    volumes:
+      - ./server:/app
+      - /app/node_modules
     networks:
       - fullstack-network
     depends_on:
@@ -62,6 +71,7 @@
       retries: 3
       start_period: 30s
 
+  # Frontend React App
   frontend:
     image: gazal94/fullstack-frontend:latest
     container_name: fullstack-frontend
@@ -73,10 +83,24 @@
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
+# Named volumes for persistent data
 volumes:
   mongodb_data:
+    driver: local
   redis_data:
+    driver: local
 
+# Custom network
 networks:
   fullstack-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
