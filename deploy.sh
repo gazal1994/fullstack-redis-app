@@ -93,6 +93,27 @@ services:
       retries: 5
       start_period: 10s
 
+  # Redis Cache
+  redis:
+    image: gazal94/redis:7-alpine
+    container_name: userdb-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass redis123
+    environment:
+      REDIS_PASSWORD: redis123
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - user-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   # Backend API (builds from current source)
   backend:
     build:
@@ -104,12 +125,15 @@ services:
       NODE_ENV: production
       PORT: 5000
       MONGODB_URI: mongodb://admin:password123@mongodb:27017/myapp?authSource=admin
+      REDIS_URL: redis://:redis123@redis:6379
     ports:
       - "5000:5000"
     networks:
       - user-network
     depends_on:
       mongodb:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/api/"]
@@ -135,6 +159,7 @@ services:
 
 volumes:
   mongodb_data:
+  redis_data:
 
 networks:
   user-network:
@@ -175,7 +200,7 @@ echo "  Backend API: http://localhost:5000/api"
 echo ""
 echo -e "${YELLOW}Features:${NC}"
 echo "  ✅ 5 User Operations: Get, Add, Update, Delete, Get by ID"
-echo "  ✅ MongoDB Database (no Redis)"
+echo "  ✅ MongoDB Database + Redis Cache"
 echo "  ✅ Built from current source code"
 echo "  ✅ Docker containerized deployment"
 echo ""
