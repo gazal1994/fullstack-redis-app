@@ -1,127 +1,83 @@
-Write-Host "Deploying Full-Stack Application..." -ForegroundColor Blue
+# PowerShell Deployment Script for User Management System
+# Simplified deployment for MongoDB + Node.js only (no Redis, no Docker)
 
-# Check Docker
-docker info >$null 2>&1
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Docker not running! Please start Docker Desktop." -ForegroundColor Red
+Write-Host "Deploying User Management System..." -ForegroundColor Blue
+
+# Check if Node.js is installed
+try {
+    $nodeVersion = node --version
+    Write-Host "Node.js version: $nodeVersion" -ForegroundColor Green
+} catch {
+    Write-Host "Node.js not found! Please install Node.js from https://nodejs.org" -ForegroundColor Red
     exit 1
 }
-Write-Host "Docker is ready" -ForegroundColor Green
 
-# Create docker-compose.yml
-$dockerCompose = @"
-services:
-  mongodb:
-    image: gazal94/mongo:7.0
-    container_name: fullstack-mongodb
-    restart: unless-stopped
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password123
-      MONGO_INITDB_DATABASE: myapp
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-    networks:
-      - fullstack-network
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
-  redis:
-    image: gazal94/redis:7-alpine
-    container_name: fullstack-redis
-    restart: unless-stopped
-    command: redis-server --requirepass redis123 --appendonly yes
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - fullstack-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  backend:
-    image: gazal94/fullstack-backend:latest
-    container_name: fullstack-backend
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      PORT: 5000
-      MONGODB_URI: mongodb://admin:password123@mongodb:27017/myapp?authSource=admin
-      REDIS_URL: redis://:redis123@redis:6379
-    ports:
-      - "5000:5000"
-    networks:
-      - fullstack-network
-    depends_on:
-      mongodb:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-  frontend:
-    image: gazal94/fullstack-frontend:latest
-    container_name: fullstack-frontend
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    networks:
-      - fullstack-network
-    depends_on:
-      backend:
-        condition: service_healthy
-
-volumes:
-  mongodb_data:
-  redis_data:
-
-networks:
-  fullstack-network:
-"@
-
-# Write the file
-$dockerCompose | Out-File -FilePath "docker-compose.yml" -Encoding UTF8
-Write-Host "Created docker-compose.yml" -ForegroundColor Green
-
-# Stop existing containers
-Write-Host "Stopping existing containers..." -ForegroundColor Yellow
-docker-compose down 2>$null
-
-# Start the application
-Write-Host "Starting application..." -ForegroundColor Blue
-docker-compose up -d
-
-if ($LASTEXITCODE -eq 0) {
-    Write-Host ""
-    Write-Host "SUCCESS! Application is deployed!" -ForegroundColor Green
-    Write-Host "Frontend: http://localhost:3000" -ForegroundColor Cyan
-    Write-Host "Backend:  http://localhost:5000" -ForegroundColor Cyan
-    Write-Host "Health:   http://localhost:5000/health" -ForegroundColor Cyan
-    Write-Host ""
-    Write-Host "Services are starting up (may take 30-60 seconds)..." -ForegroundColor Yellow
-    Start-Sleep -Seconds 3
-    docker-compose ps
-    Write-Host ""
-    Write-Host "Opening browser..." -ForegroundColor Blue
-    Start-Process "http://localhost:3000"
-} else {
-    Write-Host "Deployment failed! Check logs with: docker-compose logs" -ForegroundColor Red
+# Check if npm is installed
+try {
+    $npmVersion = npm --version
+    Write-Host "npm version: $npmVersion" -ForegroundColor Green
+} catch {
+    Write-Host "npm not found! Please install npm" -ForegroundColor Red
+    exit 1
 }
 
+Write-Host "Installing backend dependencies..." -ForegroundColor Cyan
+Set-Location server
+npm install
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Failed to install backend dependencies!" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "Installing frontend dependencies..." -ForegroundColor Cyan
+Set-Location ..\my-app
+npm install
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Failed to install frontend dependencies!" -ForegroundColor Red
+    exit 1
+}
+
+Set-Location ..
+
+Write-Host "Starting applications..." -ForegroundColor Green
+
+# Start backend server in background
+Write-Host "Starting backend server (port 5000)..." -ForegroundColor Cyan
+$backendJob = Start-Job -ScriptBlock {
+    Set-Location "$using:PWD\server"
+    npm start
+}
+
+Start-Sleep -Seconds 3
+
+# Start frontend development server in background
+Write-Host "Starting frontend server (port 5174)..." -ForegroundColor Cyan
+$frontendJob = Start-Job -ScriptBlock {
+    Set-Location "$using:PWD\my-app"
+    npm run dev
+}
+
+Start-Sleep -Seconds 5
+
 Write-Host ""
-Write-Host "Script completed!" -ForegroundColor Green
+Write-Host "🎉 User Management System is running!" -ForegroundColor Green
+Write-Host ""
+Write-Host "Application URLs:" -ForegroundColor Yellow
+Write-Host "  Frontend: http://localhost:5174" -ForegroundColor White
+Write-Host "  Backend API: http://localhost:5000/api" -ForegroundColor White
+Write-Host ""
+Write-Host "Features:" -ForegroundColor Yellow
+Write-Host "  ✅ 5 User Operations: Get, Add, Update, Delete, Get by ID" -ForegroundColor White
+Write-Host "  ✅ MongoDB Database (simplified, no Redis)" -ForegroundColor White
+Write-Host "  ✅ React + TypeScript + Redux Frontend" -ForegroundColor White
+Write-Host ""
+Write-Host "Running Jobs:" -ForegroundColor Yellow
+Write-Host "  Backend Job ID: $($backendJob.Id)" -ForegroundColor White
+Write-Host "  Frontend Job ID: $($frontendJob.Id)" -ForegroundColor White
+Write-Host ""
+Write-Host "To stop applications:" -ForegroundColor Yellow
+Write-Host "  Stop-Job $($backendJob.Id), $($frontendJob.Id)" -ForegroundColor White
+Write-Host "  Remove-Job $($backendJob.Id), $($frontendJob.Id)" -ForegroundColor White
+Write-Host ""
+Write-Host "To check status:" -ForegroundColor Yellow
+Write-Host "  Get-Job" -ForegroundColor White
