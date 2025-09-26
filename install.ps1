@@ -11,15 +11,28 @@ $repoPath = Join-Path $installPath "fullstack-redis-app"
 # Remove existing repo directory if it exists
 if (Test-Path $repoPath) {
     Write-Host "Directory $repoPath already exists. Removing old installation..." -ForegroundColor Yellow
-    Remove-Item -Recurse -Force $repoPath
+    # Stop any running processes in that directory first
+    Get-Process | Where-Object { $_.Path -like "$repoPath*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+    
+    # Try to remove directory, if it fails, try to rename it instead
+    try {
+        Remove-Item -Recurse -Force $repoPath -ErrorAction Stop
+    } catch {
+        $backupPath = "$repoPath.backup.$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+        Write-Host "Cannot remove directory, renaming to $backupPath..." -ForegroundColor Yellow
+        Rename-Item $repoPath $backupPath -ErrorAction SilentlyContinue
+    }
 }
 
 # Clone the repository to the same directory as the install script
 Write-Host "Cloning repository to $repoPath..." -ForegroundColor Cyan
-git clone https://github.com/gazal1994/fullstack-redis-app.git $repoPath
+$gitResult = git clone https://github.com/gazal1994/fullstack-redis-app.git $repoPath 2>&1
 
-if (-not (Test-Path $repoPath)) {
-    Write-Host "Failed to clone repository. Please check your internet connection and Git installation." -ForegroundColor Red
+if (-not (Test-Path "$repoPath\.git")) {
+    Write-Host "Failed to clone repository. Error:" -ForegroundColor Red
+    Write-Host $gitResult -ForegroundColor Red
+    Write-Host "Please check your internet connection and Git installation." -ForegroundColor Red
     exit 1
 }
 
@@ -27,62 +40,43 @@ if (-not (Test-Path $repoPath)) {
 Set-Location $repoPath
 
 Write-Host "Repository cloned successfully!" -ForegroundColor Green
-Write-Host "Starting simple installation (Node.js only)..." -ForegroundColor Green
+Write-Host "Running deployment script..." -ForegroundColor Green
 
-# Simple Node.js installation
+# Run the deployment script from the cloned repository
 try {
-    # Install backend dependencies
-    Write-Host "Installing backend dependencies..." -ForegroundColor Cyan
-    Set-Location server
-    npm install
-    
-    # Install frontend dependencies  
-    Write-Host "Installing frontend dependencies..." -ForegroundColor Cyan
-    Set-Location ..\my-app
-    npm install
-    
-    Set-Location ..
-    
-    Write-Host "Installation complete!" -ForegroundColor Green
-    Write-Host "Starting applications..." -ForegroundColor Green
-    
-    # Start backend server in background
-    Write-Host "Starting backend server..." -ForegroundColor Cyan
-    $backendJob = Start-Job -ScriptBlock {
-        Set-Location "$using:repoPath\server"
-        npm start
+    # Check if deploy.ps1 exists, if not use the bash version
+    if (Test-Path ".\deploy.ps1") {
+        Write-Host "Running deploy.ps1..." -ForegroundColor Cyan
+        & .\deploy.ps1
+    } elseif (Test-Path ".\deploy.sh") {
+        Write-Host "Running deploy.sh..." -ForegroundColor Cyan
+        bash .\deploy.sh
+    } else {
+        Write-Host "No deployment script found. Installing dependencies manually..." -ForegroundColor Yellow
+        
+        # Install backend dependencies
+        Write-Host "Installing backend dependencies..." -ForegroundColor Cyan
+        Set-Location server
+        npm install
+        
+        # Install frontend dependencies  
+        Write-Host "Installing frontend dependencies..." -ForegroundColor Cyan
+        Set-Location ..\my-app
+        npm install
+        
+        Set-Location ..
+        
+        Write-Host "Installation complete! To start the application:" -ForegroundColor Green
+        Write-Host "1. Start backend: cd server && npm start" -ForegroundColor White
+        Write-Host "2. Start frontend: cd my-app && npm run dev" -ForegroundColor White
+        Write-Host ""
+        Write-Host "Application URLs:" -ForegroundColor Green
+        Write-Host "  Frontend: http://localhost:5174" -ForegroundColor White
+        Write-Host "  Backend API: http://localhost:5000/api" -ForegroundColor White
     }
-    
-    # Wait a moment for backend to start
-    Start-Sleep -Seconds 3
-    
-    # Start frontend development server in background
-    Write-Host "Starting frontend development server..." -ForegroundColor Cyan
-    $frontendJob = Start-Job -ScriptBlock {
-        Set-Location "$using:repoPath\my-app"
-        npm run dev
-    }
-    
-    # Wait for frontend to start
-    Start-Sleep -Seconds 5
-    
-    Write-Host "" 
-    Write-Host "🎉 Applications are now running!" -ForegroundColor Green
-    Write-Host "Application URLs:" -ForegroundColor Green
-    Write-Host "  Frontend: http://localhost:5174" -ForegroundColor White
-    Write-Host "  Backend API: http://localhost:5000/api" -ForegroundColor White
-    Write-Host ""
-    Write-Host "Running Jobs:" -ForegroundColor Green
-    Write-Host "  Backend Job ID: $($backendJob.Id)" -ForegroundColor White
-    Write-Host "  Frontend Job ID: $($frontendJob.Id)" -ForegroundColor White
-    Write-Host ""
-    Write-Host "To stop the applications:" -ForegroundColor Yellow
-    Write-Host "  Stop-Job $($backendJob.Id), $($frontendJob.Id)" -ForegroundColor White
-    Write-Host "  Remove-Job $($backendJob.Id), $($frontendJob.Id)" -ForegroundColor White
-    Write-Host ""
-    Write-Host "To check job status:" -ForegroundColor Yellow
-    Write-Host "  Get-Job" -ForegroundColor White
 } catch {
-    Write-Host "Simple installation failed. You can run Docker deployment instead:" -ForegroundColor Yellow
-    Write-Host "& .\deploy.ps1" -ForegroundColor White
+    Write-Host "Deployment failed. Error: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "You can try running the deployment script manually:" -ForegroundColor Yellow
+    Write-Host "  cd $repoPath" -ForegroundColor White
+    Write-Host "  .\deploy.ps1  # or  bash deploy.sh" -ForegroundColor White
 }
