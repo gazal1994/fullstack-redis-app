@@ -6,7 +6,7 @@ function HomeScreen() {
     <div className="home-screen">
       <div className="nav-container">
         <h1 className="title">
-          User Management System
+          User Management System Gazal
         </h1>
         <p className="subtitle">
           MongoDB User Operations
