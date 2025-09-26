@@ -4,6 +4,8 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
 const { connectDB, isConnected, getConnectionStatus } = require('./config/mongodb');
+// Redis configuration (ready to use when needed)
+// const { connectRedis, isConnected: isRedisConnected, getConnectionStatus: getRedisStatus } = require('./config/redis');
 
 dotenv.config();
 
@@ -26,6 +28,8 @@ app.use('/api', require('./routes/api'));
 app.get('/health', (req, res) => {
   const mongoStatus = getConnectionStatus();
   const isMongoConnected = isConnected();
+  // const redisStatus = getRedisStatus();  // Uncomment when Redis is active
+  // const isRedisConnected = isRedisConnected();  // Uncomment when Redis is active
   
   res.status(200).json({
     status: isMongoConnected ? 'OK' : 'Partial',
@@ -36,6 +40,10 @@ app.get('/health', (req, res) => {
         status: mongoStatus,
         connected: isMongoConnected
       }
+      // redis: {  // Uncomment when Redis is active
+      //   status: redisStatus,
+      //   connected: isRedisConnected
+      // }
     }
   });
 });
@@ -80,6 +88,18 @@ const startServer = async () => {
     } else {
       console.log('⚠ Server starting without MongoDB connection');
     }
+
+    // Redis connection setup (commented out - ready to use)
+    // try {
+    //   const redisConnection = await connectRedis();
+    //   if (redisConnection) {
+    //     console.log('✓ Redis connected successfully');
+    //   } else {
+    //     console.log('⚠ Server starting without Redis connection');
+    //   }
+    // } catch (redisError) {
+    //   console.log('⚠ Redis connection failed, continuing without Redis:', redisError.message);
+    // }
     
     app.listen(PORT, () => {
       console.log(`✓ User Management Server is running on port ${PORT}`);
