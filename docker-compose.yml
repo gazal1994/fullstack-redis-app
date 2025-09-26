@@ -23,7 +23,7 @@
 
   # Redis Cache
   redis:
-    image: redis:7.2-alpine
+    image: gazal94/redis:7-alpine
     container_name: userdb-redis
     restart: unless-stopped
     command: redis-server --appendonly yes --requirepass redis123
