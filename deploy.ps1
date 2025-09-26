@@ -1,83 +1,147 @@
 # PowerShell Deployment Script for User Management System
-# Simplified deployment for MongoDB + Node.js only (no Redis, no Docker)
+# Docker deployment that builds from current source code
 
-Write-Host "Deploying User Management System..." -ForegroundColor Blue
+Write-Host "Deploying User Management System with Docker..." -ForegroundColor Blue
 
-# Check if Node.js is installed
+# Check Docker
 try {
-    $nodeVersion = node --version
-    Write-Host "Node.js version: $nodeVersion" -ForegroundColor Green
+    docker info >$null 2>&1
+    Write-Host "✅ Docker is running" -ForegroundColor Green
 } catch {
-    Write-Host "Node.js not found! Please install Node.js from https://nodejs.org" -ForegroundColor Red
+    Write-Host "❌ Docker not running! Please start Docker Desktop." -ForegroundColor Red
     exit 1
 }
 
-# Check if npm is installed
-try {
-    $npmVersion = npm --version
-    Write-Host "npm version: $npmVersion" -ForegroundColor Green
-} catch {
-    Write-Host "npm not found! Please install npm" -ForegroundColor Red
-    exit 1
-}
+# Stop and remove existing containers and images to ensure fresh build
+Write-Host "Cleaning up old containers and images..." -ForegroundColor Yellow
+docker-compose down --remove-orphans 2>$null
+docker system prune -f 2>$null
 
-Write-Host "Installing backend dependencies..." -ForegroundColor Cyan
-Set-Location server
-npm install
+# Create docker-compose.yml for building from source
+Write-Host "Creating docker-compose configuration..." -ForegroundColor Cyan
+$dockerCompose = @"
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: userdb-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: myapp
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - user-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Backend API (builds from current source)
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: userdb-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: mongodb://admin:password123@mongodb:27017/myapp?authSource=admin
+    ports:
+      - "5000:5000"
+    networks:
+      - user-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Frontend (builds from current source)
+  frontend:
+    build:
+      context: ./my-app
+      dockerfile: Dockerfile
+    container_name: userdb-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    networks:
+      - user-network
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  mongodb_data:
+
+networks:
+  user-network:
+    driver: bridge
+"@
+
+# Write docker-compose file
+$dockerCompose | Out-File -FilePath "docker-compose.yml" -Encoding UTF8
+Write-Host "✅ Created docker-compose.yml" -ForegroundColor Green
+
+# Build and start services
+Write-Host "Building and starting services..." -ForegroundColor Blue
+Write-Host "This will build fresh images from your current code..." -ForegroundColor Yellow
+
+# Force rebuild all images
+docker-compose build --no-cache
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Failed to install backend dependencies!" -ForegroundColor Red
+    Write-Host "❌ Build failed!" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "Installing frontend dependencies..." -ForegroundColor Cyan
-Set-Location ..\my-app
-npm install
+# Start services
+docker-compose up -d
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "Failed to install frontend dependencies!" -ForegroundColor Red
+    Write-Host "❌ Failed to start services!" -ForegroundColor Red
     exit 1
 }
 
-Set-Location ..
+# Wait for services to be ready
+Write-Host "Waiting for services to start..." -ForegroundColor Yellow
+Start-Sleep -Seconds 15
 
-Write-Host "Starting applications..." -ForegroundColor Green
-
-# Start backend server in background
-Write-Host "Starting backend server (port 5000)..." -ForegroundColor Cyan
-$backendJob = Start-Job -ScriptBlock {
-    Set-Location "$using:PWD\server"
-    npm start
-}
-
-Start-Sleep -Seconds 3
-
-# Start frontend development server in background
-Write-Host "Starting frontend server (port 5174)..." -ForegroundColor Cyan
-$frontendJob = Start-Job -ScriptBlock {
-    Set-Location "$using:PWD\my-app"
-    npm run dev
-}
-
-Start-Sleep -Seconds 5
-
+# Check service status
 Write-Host ""
-Write-Host "🎉 User Management System is running!" -ForegroundColor Green
+Write-Host "🎉 User Management System deployed with Docker!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Application URLs:" -ForegroundColor Yellow
-Write-Host "  Frontend: http://localhost:5174" -ForegroundColor White
+Write-Host "  Frontend: http://localhost:3000" -ForegroundColor White
 Write-Host "  Backend API: http://localhost:5000/api" -ForegroundColor White
 Write-Host ""
 Write-Host "Features:" -ForegroundColor Yellow
 Write-Host "  ✅ 5 User Operations: Get, Add, Update, Delete, Get by ID" -ForegroundColor White
-Write-Host "  ✅ MongoDB Database (simplified, no Redis)" -ForegroundColor White
-Write-Host "  ✅ React + TypeScript + Redux Frontend" -ForegroundColor White
+Write-Host "  ✅ MongoDB Database (no Redis)" -ForegroundColor White
+Write-Host "  ✅ Built from current source code" -ForegroundColor White
+Write-Host "  ✅ Docker containerized deployment" -ForegroundColor White
 Write-Host ""
-Write-Host "Running Jobs:" -ForegroundColor Yellow
-Write-Host "  Backend Job ID: $($backendJob.Id)" -ForegroundColor White
-Write-Host "  Frontend Job ID: $($frontendJob.Id)" -ForegroundColor White
+Write-Host "Container Status:" -ForegroundColor Yellow
+docker-compose ps
 Write-Host ""
-Write-Host "To stop applications:" -ForegroundColor Yellow
-Write-Host "  Stop-Job $($backendJob.Id), $($frontendJob.Id)" -ForegroundColor White
-Write-Host "  Remove-Job $($backendJob.Id), $($frontendJob.Id)" -ForegroundColor White
+Write-Host "To stop:" -ForegroundColor Yellow
+Write-Host "  docker-compose down" -ForegroundColor White
 Write-Host ""
+Write-Host "To rebuild with code changes:" -ForegroundColor Yellow
+Write-Host "  docker-compose build --no-cache && docker-compose up -d" -ForegroundColor White
+
+# Open browser
+Write-Host "Opening browser..." -ForegroundColor Blue
+Start-Process "http://localhost:3000"
 Write-Host "To check status:" -ForegroundColor Yellow
 Write-Host "  Get-Job" -ForegroundColor White

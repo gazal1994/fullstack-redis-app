@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # User Management System Deployment Script for macOS/Linux
-# Simplified deployment for MongoDB + Node.js only (no Redis, no Docker)
+# Docker deployment that builds from current source code
 
 set -e  # Exit on any error
 
@@ -32,7 +32,7 @@ print_error() {
 print_header() {
     echo -e "${CYAN}"
     echo "=============================================="
-    echo "User Management System Deployment"
+    echo "User Management System Docker Deployment"
     echo "=============================================="
     echo -e "${NC}"
 }
@@ -43,89 +43,149 @@ command_exists() {
 
 print_header
 
-# Check Node.js
-if ! command_exists node; then
-    print_error "Node.js not found! Please install Node.js from https://nodejs.org"
+# Check Docker
+if ! command_exists docker; then
+    print_error "Docker not found! Please install Docker"
     exit 1
 fi
 
-NODE_VERSION=$(node --version)
-print_info "Node.js version: $NODE_VERSION"
-
-# Check npm
-if ! command_exists npm; then
-    print_error "npm not found! Please install npm"
+if ! docker info >/dev/null 2>&1; then
+    print_error "Docker not running! Please start Docker service"
     exit 1
 fi
 
-NPM_VERSION=$(npm --version)
-print_info "npm version: $NPM_VERSION"
+print_status "✅ Docker is running"
 
-# Install backend dependencies
-print_info "Installing backend dependencies..."
-cd server
-npm install
+# Check Docker Compose
+if ! command_exists docker-compose; then
+    print_error "Docker Compose not found! Please install Docker Compose"
+    exit 1
+fi
+
+# Stop and remove existing containers and images to ensure fresh build
+print_info "Cleaning up old containers and images..."
+docker-compose down --remove-orphans 2>/dev/null || true
+docker system prune -f 2>/dev/null || true
+
+# Create docker-compose.yml for building from source
+print_info "Creating docker-compose configuration..."
+cat > docker-compose.yml << 'EOF'
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: userdb-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: myapp
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - user-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Backend API (builds from current source)
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: userdb-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: mongodb://admin:password123@mongodb:27017/myapp?authSource=admin
+    ports:
+      - "5000:5000"
+    networks:
+      - user-network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Frontend (builds from current source)
+  frontend:
+    build:
+      context: ./my-app
+      dockerfile: Dockerfile
+    container_name: userdb-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    networks:
+      - user-network
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  mongodb_data:
+
+networks:
+  user-network:
+    driver: bridge
+EOF
+
+print_status "✅ Created docker-compose.yml"
+
+# Build and start services
+print_info "Building and starting services..."
+print_warning "This will build fresh images from your current code..."
+
+# Force rebuild all images
+docker-compose build --no-cache
 if [ $? -ne 0 ]; then
-    print_error "Failed to install backend dependencies!"
+    print_error "❌ Build failed!"
     exit 1
 fi
 
-# Install frontend dependencies
-print_info "Installing frontend dependencies..."
-cd ../my-app
-npm install
+# Start services
+docker-compose up -d
 if [ $? -ne 0 ]; then
-    print_error "Failed to install frontend dependencies!"
+    print_error "❌ Failed to start services!"
     exit 1
 fi
 
-cd ..
+# Wait for services to be ready
+print_info "Waiting for services to start..."
+sleep 15
 
-print_info "Starting applications..."
-
-# Start backend server in background
-print_info "Starting backend server (port 5000)..."
-cd server
-nohup npm start > ../backend.log 2>&1 &
-BACKEND_PID=$!
-echo $BACKEND_PID > ../backend.pid
-
-# Wait for backend to start
-sleep 3
-
-# Start frontend development server in background
-print_info "Starting frontend server (port 5174)..."
-cd ../my-app
-nohup npm run dev > ../frontend.log 2>&1 &
-FRONTEND_PID=$!
-echo $FRONTEND_PID > ../frontend.pid
-
-cd ..
-
-# Wait for services to start
-sleep 5
-
+# Check service status
 echo ""
-print_status "🎉 User Management System is running!"
+print_status "🎉 User Management System deployed with Docker!"
 echo ""
 echo -e "${YELLOW}Application URLs:${NC}"
-echo "  Frontend: http://localhost:5174"
+echo "  Frontend: http://localhost:3000"
 echo "  Backend API: http://localhost:5000/api"
 echo ""
 echo -e "${YELLOW}Features:${NC}"
 echo "  ✅ 5 User Operations: Get, Add, Update, Delete, Get by ID"
-echo "  ✅ MongoDB Database (simplified, no Redis)"
-echo "  ✅ React + TypeScript + Redux Frontend"
+echo "  ✅ MongoDB Database (no Redis)"
+echo "  ✅ Built from current source code"
+echo "  ✅ Docker containerized deployment"
 echo ""
-echo -e "${YELLOW}Process IDs:${NC}"
-echo "  Backend PID: $BACKEND_PID (saved to backend.pid)"
-echo "  Frontend PID: $FRONTEND_PID (saved to frontend.pid)"
+echo -e "${YELLOW}Container Status:${NC}"
+docker-compose ps
 echo ""
-echo -e "${YELLOW}To stop applications:${NC}"
-echo "  kill \$(cat backend.pid frontend.pid)"
+echo -e "${YELLOW}To stop:${NC}"
+echo "  docker-compose down"
 echo ""
-echo -e "${YELLOW}Log files:${NC}"
-echo "  Backend: $(pwd)/backend.log"
-echo "  Frontend: $(pwd)/frontend.log"
+echo -e "${YELLOW}To rebuild with code changes:${NC}"
+echo "  docker-compose build --no-cache && docker-compose up -d"
 echo ""
 print_status "Deployment completed!"
