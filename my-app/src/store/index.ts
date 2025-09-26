@@ -1,7 +1,7 @@
-import { configureStore } from '@reduxjs/toolkit';
-import { apiSlice } from './apiSlice';
-import userSlice from './userSlice';
-import cacheSlice from './cacheSlice';
+import { configureStore } from "@reduxjs/toolkit";
+import { apiSlice } from "./apiSlice";
+import userSlice from "./userSlice";
+// import cacheSlice from "./cacheSlice"; // Removed - not using Redis
 
 export const store = configureStore({
   reducer: {
@@ -9,7 +9,7 @@ export const store = configureStore({
     [apiSlice.reducerPath]: apiSlice.reducer,
     // Feature slices
     user: userSlice,
-    cache: cacheSlice,
+    // cache: cacheSlice, // Removed - simplified to MongoDB-only operations
   },
   // Adding the api middleware enables caching, invalidation, polling, and other features of RTK Query
   middleware: (getDefaultMiddleware) =>
@@ -17,8 +17,8 @@ export const store = configureStore({
       serializableCheck: {
         ignoredActions: [
           // Ignore these action types
-          'persist/PERSIST',
-          'persist/REHYDRATE',
+          "persist/PERSIST",
+          "persist/REHYDRATE",
         ],
       },
     }).concat(apiSlice.middleware),
