@@ -46,3 +46,10 @@ Thumbs.db
 # Temporary folders
 tmp/
 temp/
+
+# Install script generated folders (avoid recursive git repos)
+fullstack-redis-app/
+backend.log
+frontend.log
+backend.pid
+frontend.pid
