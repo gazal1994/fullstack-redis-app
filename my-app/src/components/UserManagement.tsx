@@ -70,7 +70,9 @@ const UserManagement: React.FC = () => {
       }).unwrap();
       
       // Update Redux state immediately
-      dispatch(addUser(result.data));
+      if (result.data) {
+        dispatch(addUser(result.data));
+      }
       
       setFormData({ name: '', email: '', age: '', bio: '' });
       dispatch(hideForms());
