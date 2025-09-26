@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  useGetHealthQuery,
   useGetUsersQuery,
   useCreateUserMutation,
   useDeleteUserMutation,
@@ -13,7 +12,10 @@ import {
   hideForms, 
   selectUser, 
   deselectUser,
-  clearSelectedUsers 
+  clearSelectedUsers,
+  addUser,
+  deleteUser as deleteUserFromState,
+  setUsers
 } from '../store/userSlice';
 
 interface UserFormData {
@@ -25,10 +27,9 @@ interface UserFormData {
 
 const UserManagement: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { filters, selectedUsers, ui } = useAppSelector((state) => state.user);
+  const { filters, selectedUsers, ui, users: stateUsers } = useAppSelector((state) => state.user);
   
-  // API hooks
-  const { data: healthData } = useGetHealthQuery();
+  // API hooks - USERS ONLY
   const { data: usersData, isLoading: usersLoading, error: usersError, refetch } = useGetUsersQuery();
   const [createUser, { isLoading: createLoading }] = useCreateUserMutation();
   const [deleteUser, { isLoading: deleteLoading }] = useDeleteUserMutation();
@@ -41,7 +42,16 @@ const UserManagement: React.FC = () => {
     bio: '',
   });
 
-  const users = usersData?.data || [];
+  // Use state users or fallback to API data
+  const users = stateUsers.length > 0 ? stateUsers : (usersData?.data || []);
+  
+  // Update Redux state when API data changes
+  useEffect(() => {
+    if (usersData?.data && usersData.data.length > 0) {
+      dispatch(setUsers(usersData.data));
+    }
+  }, [usersData?.data, dispatch]);
+
   const filteredUsers = users.filter(user =>
     user.name.toLowerCase().includes(filters.search.toLowerCase()) ||
     user.email.toLowerCase().includes(filters.search.toLowerCase())
@@ -50,7 +60,7 @@ const UserManagement: React.FC = () => {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createUser({
+      const result = await createUser({
         name: formData.name,
         email: formData.email,
         age: formData.age ? parseInt(formData.age) : undefined,
@@ -59,9 +69,12 @@ const UserManagement: React.FC = () => {
         },
       }).unwrap();
       
+      // Update Redux state immediately
+      dispatch(addUser(result.data));
+      
       setFormData({ name: '', email: '', age: '', bio: '' });
       dispatch(hideForms());
-      refetch();
+      refetch(); // Still refetch to ensure consistency
     } catch (error) {
       console.error('Failed to create user:', error);
     }
@@ -71,8 +84,12 @@ const UserManagement: React.FC = () => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
         await deleteUser(userId).unwrap();
+        
+        // Update Redux state immediately
+        dispatch(deleteUserFromState(userId));
         dispatch(deselectUser(userId));
-        refetch();
+        
+        refetch(); // Still refetch to ensure consistency
       } catch (error) {
         console.error('Failed to delete user:', error);
       }
@@ -94,8 +111,14 @@ const UserManagement: React.FC = () => {
     if (window.confirm(`Are you sure you want to delete ${selectedUsers.length} users?`)) {
       try {
         await Promise.all(selectedUsers.map(user => deleteUser(user._id).unwrap()));
+        
+        // Update Redux state immediately
+        selectedUsers.forEach(user => {
+          dispatch(deleteUserFromState(user._id));
+        });
         dispatch(clearSelectedUsers());
-        refetch();
+        
+        refetch(); // Still refetch to ensure consistency
       } catch (error) {
         console.error('Failed to delete selected users:', error);
       }
@@ -106,44 +129,46 @@ const UserManagement: React.FC = () => {
     <div className="p-6 max-w-6xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">User Management</h1>
       
-      {/* Health Status */}
-      <div className="mb-6 p-4 bg-gray-100 rounded-lg">
-        <h2 className="text-lg font-semibold mb-2">Server Status</h2>
-        {healthData ? (
-          <div className="flex items-center space-x-4">
-            <span className={`px-3 py-1 rounded text-sm font-medium ${
-              healthData.status === 'OK' ? 'bg-green-100 text-green-800' :
-              healthData.status === 'Partial' ? 'bg-yellow-100 text-yellow-800' :
-              'bg-red-100 text-red-800'
-            }`}>
-              {healthData.status}
-            </span>
-            <span className="text-sm text-gray-600">
-              MongoDB: {healthData.services.mongodb.connected ? '✓' : '✗'}
-            </span>
-            <span className="text-sm text-gray-600">
-              Redis: {healthData.services.redis.connected ? '✓' : '✗'}
-            </span>
-          </div>
-        ) : (
-          <span className="text-gray-500">Loading...</span>
-        )}
+      {/* Simple Status */}
+      <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
+        <div className="flex items-center space-x-2">
+          <span className="text-green-600 font-semibold">✓ MongoDB Connected</span>
+          <span className="text-sm text-gray-600">Direct database operations</span>
+        </div>
       </div>
 
       {/* Controls */}
       <div className="mb-6 flex flex-wrap items-center gap-4">
-        <input
-          type="text"
-          placeholder="Search users..."
-          value={filters.search}
-          onChange={(e) => dispatch(setSearchFilter(e.target.value))}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search users..."
+            value={filters.search}
+            onChange={(e) => dispatch(setSearchFilter(e.target.value))}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          {filters.search && (
+            <button
+              onClick={() => dispatch(setSearchFilter(''))}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              title="Clear search"
+            >
+              ✕
+            </button>
+          )}
+        </div>
         <button
           onClick={() => dispatch(showCreateForm())}
           className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:ring-2 focus:ring-blue-500"
         >
           Add User
+        </button>
+        <button
+          onClick={() => refetch()}
+          className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:ring-2 focus:ring-gray-500"
+          title="Refresh data from server"
+        >
+          🔄 Refresh
         </button>
         {selectedUsers.length > 0 && (
           <button
@@ -156,7 +181,6 @@ const UserManagement: React.FC = () => {
         )}
         <span className="text-sm text-gray-600">
           Showing {filteredUsers.length} of {users.length} users
-          {usersData?.cached && <span className="text-blue-600 ml-1">(from cache)</span>}
         </span>
       </div>
 

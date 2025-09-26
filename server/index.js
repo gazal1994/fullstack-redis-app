@@ -4,7 +4,6 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
 const { connectDB, isConnected, getConnectionStatus } = require('./config/mongodb');
-const { connectRedis, isConnected: isRedisConnected, getConnectionStatus: getRedisConnectionStatus } = require('./config/redis');
 
 dotenv.config();
 
@@ -13,7 +12,6 @@ const PORT = process.env.PORT || 5000;
 
 // Environment variables with defaults
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://admin:password123@localhost:27017/myapp?authSource=admin';
-const REDIS_URL = process.env.REDIS_URL || 'redis://:redis123@localhost:6379';
 
 app.use(helmet()); // Security headers
 app.use(cors()); // Enable CORS
@@ -28,23 +26,15 @@ app.use('/api', require('./routes/api'));
 app.get('/health', (req, res) => {
   const mongoStatus = getConnectionStatus();
   const isMongoConnected = isConnected();
-  const redisStatus = getRedisConnectionStatus();
-  const isRedisConnectedStatus = isRedisConnected();
-  
-  const allServicesConnected = isMongoConnected && isRedisConnectedStatus;
   
   res.status(200).json({
-    status: allServicesConnected ? 'OK' : 'Partial',
+    status: isMongoConnected ? 'OK' : 'Partial',
     timestamp: new Date().toISOString(),
     services: {
       server: 'Connected',
       mongodb: {
         status: mongoStatus,
         connected: isMongoConnected
-      },
-      redis: {
-        status: redisStatus,
-        connected: isRedisConnectedStatus
       }
     }
   });
@@ -53,7 +43,7 @@ app.get('/health', (req, res) => {
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({
-    message: 'Welcome to My App Server',
+    message: 'Welcome to User Management Server',
     version: '1.0.0',
     endpoints: {
       health: '/health',
@@ -82,7 +72,7 @@ app.use('*', (req, res) => {
 // Start server
 const startServer = async () => {
   try {
-    // Connect to MongoDB
+    // Connect to MongoDB only
     const mongoConnection = await connectDB();
     
     if (mongoConnection) {
@@ -91,17 +81,8 @@ const startServer = async () => {
       console.log('⚠ Server starting without MongoDB connection');
     }
     
-    // Connect to Redis
-    const redisConnection = await connectRedis();
-    
-    if (redisConnection) {
-      console.log('✓ Redis connected successfully');
-    } else {
-      console.log('⚠ Server starting without Redis connection');
-    }
-    
     app.listen(PORT, () => {
-      console.log(`✓ Server is running on port ${PORT}`);
+      console.log(`✓ User Management Server is running on port ${PORT}`);
       console.log(`Health check: http://localhost:${PORT}/health`);
       console.log(`API endpoints: http://localhost:${PORT}/api`);
     });

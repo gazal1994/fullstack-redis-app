@@ -4,6 +4,7 @@ import type { User } from './apiSlice';
 
 interface UserState {
   currentUser: User | null;
+  users: User[]; // All users list
   selectedUsers: User[];
   filters: {
     search: string;
@@ -21,6 +22,7 @@ interface UserState {
 
 const initialState: UserState = {
   currentUser: null,
+  users: [], // Initialize empty users array
   selectedUsers: [],
   filters: {
     search: '',
@@ -43,6 +45,44 @@ const userSlice = createSlice({
     // User management
     setCurrentUser: (state, action: PayloadAction<User | null>) => {
       state.currentUser = action.payload;
+    },
+
+    // Users list management
+    setUsers: (state, action: PayloadAction<User[]>) => {
+      state.users = action.payload;
+    },
+
+    addUser: (state, action: PayloadAction<User>) => {
+      const existingIndex = state.users.findIndex(user => user._id === action.payload._id);
+      if (existingIndex === -1) {
+        state.users.push(action.payload);
+      }
+    },
+
+    updateUser: (state, action: PayloadAction<User>) => {
+      const index = state.users.findIndex(user => user._id === action.payload._id);
+      if (index !== -1) {
+        state.users[index] = action.payload;
+      }
+      // Also update current user if it's the same user
+      if (state.currentUser && state.currentUser._id === action.payload._id) {
+        state.currentUser = action.payload;
+      }
+    },
+
+    deleteUser: (state, action: PayloadAction<string>) => {
+      state.users = state.users.filter(user => user._id !== action.payload);
+      // Remove from selected users if present
+      state.selectedUsers = state.selectedUsers.filter(user => user._id !== action.payload);
+      // Clear current user if it's the deleted user
+      if (state.currentUser && state.currentUser._id === action.payload) {
+        state.currentUser = null;
+      }
+      // Clear editing user if it's the deleted user
+      if (state.ui.editingUserId === action.payload) {
+        state.ui.editingUserId = null;
+        state.ui.showEditForm = false;
+      }
     },
     
     selectUser: (state, action: PayloadAction<User>) => {
@@ -112,6 +152,10 @@ const userSlice = createSlice({
 export const {
   // User actions
   setCurrentUser,
+  setUsers,
+  addUser,
+  updateUser,
+  deleteUser,
   selectUser,
   deselectUser,
   clearSelectedUsers,
@@ -132,3 +176,15 @@ export const {
 } = userSlice.actions;
 
 export default userSlice.reducer;
+
+// Selectors
+export const selectAllUsers = (state: { user: UserState }) => state.user.users;
+export const selectFilteredUsers = (state: { user: UserState }) => {
+  const { users, filters } = state.user;
+  return users.filter(user =>
+    user.name.toLowerCase().includes(filters.search.toLowerCase()) ||
+    user.email.toLowerCase().includes(filters.search.toLowerCase())
+  );
+};
+export const selectSelectedUsers = (state: { user: UserState }) => state.user.selectedUsers;
+export const selectCurrentUser = (state: { user: UserState }) => state.user.currentUser;

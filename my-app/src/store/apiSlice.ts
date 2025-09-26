@@ -15,79 +15,38 @@ export interface User {
   updatedAt: string;
 }
 
-export interface Post {
-  _id: string;
-  title: string;
-  content: string;
-  author: string | User;
-  tags?: string[];
-  category?: string;
-  published: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface ApiResponse<T> {
   message: string;
   data?: T;
   count?: number;
-  cached?: boolean;
   timestamp: string;
 }
 
-export interface CacheItem {
-  key: string;
-  value: any;
-  ttl?: number;
-}
-
-export interface HealthStatus {
-  status: 'OK' | 'Partial' | 'Error';
-  timestamp: string;
-  services: {
-    server: string;
-    mongodb: {
-      status: string;
-      connected: boolean;
-    };
-    redis: {
-      status: string;
-      connected: boolean;
-    };
-  };
-}
-
-// Define the API slice
+// Define the API slice - USERS ONLY
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
     baseUrl: 'http://localhost:5000/api',
-    // You can add headers, authentication, etc. here
     prepareHeaders: (headers) => {
-      // Add any default headers
       headers.set('Content-Type', 'application/json');
       return headers;
     },
   }),
-  tagTypes: ['User', 'Post', 'Cache', 'Health'],
+  tagTypes: ['User'],
   endpoints: (builder) => ({
-    // Health check
-    getHealth: builder.query<HealthStatus, void>({
-      query: () => '../health',
-      providesTags: ['Health'],
-    }),
-
-    // User endpoints
+    // 1. GET USERS - Get all users
     getUsers: builder.query<ApiResponse<User[]>, void>({
       query: () => 'users',
       providesTags: ['User'],
     }),
     
+    // 2. GET USER - Get single user by ID
     getUserById: builder.query<ApiResponse<User>, string>({
       query: (id) => `users/${id}`,
       providesTags: (_, __, id) => [{ type: 'User', id }],
     }),
     
+    // 3. ADD USER - Create new user
     createUser: builder.mutation<ApiResponse<User>, Partial<User>>({
       query: (userData) => ({
         url: 'users',
@@ -97,6 +56,7 @@ export const apiSlice = createApi({
       invalidatesTags: ['User'],
     }),
     
+    // 4. UPDATE USER - Update existing user
     updateUser: builder.mutation<ApiResponse<User>, { id: string; data: Partial<User> }>({
       query: ({ id, data }) => ({
         url: `users/${id}`,
@@ -106,6 +66,7 @@ export const apiSlice = createApi({
       invalidatesTags: (_, __, { id }) => [{ type: 'User', id }, 'User'],
     }),
     
+    // 5. DELETE USER - Delete user by ID
     deleteUser: builder.mutation<ApiResponse<{ id: string; name: string }>, string>({
       query: (id) => ({
         url: `users/${id}`,
@@ -113,100 +74,14 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['User'],
     }),
-
-    // Post endpoints
-    getPosts: builder.query<ApiResponse<Post[]>, { category?: string; author?: string }>({
-      query: (params) => ({
-        url: 'posts',
-        params,
-      }),
-      providesTags: ['Post'],
-    }),
-    
-    createPost: builder.mutation<ApiResponse<Post>, Partial<Post>>({
-      query: (postData) => ({
-        url: 'posts',
-        method: 'POST',
-        body: postData,
-      }),
-      invalidatesTags: ['Post'],
-    }),
-
-    // Redis/Cache endpoints
-    getCacheStats: builder.query<ApiResponse<{ totalKeys: number; available: boolean }>, void>({
-      query: () => 'cache',
-      providesTags: ['Cache'],
-    }),
-    
-    getCacheValue: builder.query<ApiResponse<{ key: string; value: any; ttl?: number }>, string>({
-      query: (key) => `cache/${key}`,
-      providesTags: (_, __, key) => [{ type: 'Cache', id: key }],
-    }),
-    
-    setCacheValue: builder.mutation<ApiResponse<CacheItem>, CacheItem>({
-      query: (cacheData) => ({
-        url: 'cache',
-        method: 'POST',
-        body: cacheData,
-      }),
-      invalidatesTags: ['Cache'],
-    }),
-    
-    deleteCacheValue: builder.mutation<ApiResponse<{ key: string }>, string>({
-      query: (key) => ({
-        url: `cache/${key}`,
-        method: 'DELETE',
-      }),
-      invalidatesTags: (_, __, key) => [{ type: 'Cache', id: key }, 'Cache'],
-    }),
-
-    // Redis management endpoints
-    pingRedis: builder.query<ApiResponse<{ response: string }>, void>({
-      query: () => 'redis/ping',
-    }),
-    
-    getRedisKeys: builder.query<ApiResponse<{ keys: string[]; count: number; pattern: string }>, string | void>({
-      query: (pattern = '*') => ({
-        url: 'redis/keys',
-        params: { pattern },
-      }),
-      providesTags: ['Cache'],
-    }),
-    
-    flushRedis: builder.mutation<ApiResponse<void>, void>({
-      query: () => ({
-        url: 'redis/flush',
-        method: 'DELETE',
-      }),
-      invalidatesTags: ['Cache'],
-    }),
   }),
 });
 
-// Export hooks for usage in components
+// Export hooks for the 5 user operations ONLY
 export const {
-  // Health
-  useGetHealthQuery,
-  
-  // Users
-  useGetUsersQuery,
-  useGetUserByIdQuery,
-  useCreateUserMutation,
-  useUpdateUserMutation,
-  useDeleteUserMutation,
-  
-  // Posts
-  useGetPostsQuery,
-  useCreatePostMutation,
-  
-  // Cache
-  useGetCacheStatsQuery,
-  useGetCacheValueQuery,
-  useSetCacheValueMutation,
-  useDeleteCacheValueMutation,
-  
-  // Redis
-  usePingRedisQuery,
-  useGetRedisKeysQuery,
-  useFlushRedisMutation,
+  useGetUsersQuery,        // Get all users
+  useGetUserByIdQuery,     // Get single user
+  useCreateUserMutation,   // Add/Create user
+  useUpdateUserMutation,   // Update user
+  useDeleteUserMutation,   // Delete user
 } = apiSlice;
