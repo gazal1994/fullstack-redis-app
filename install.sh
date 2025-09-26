@@ -92,13 +92,46 @@ print_info "Starting simple installation (Node.js only)..."
     
     cd ..
     
-    print_status "Installation complete! To start the application:"
-    echo "1. Start backend: cd server && npm start"
-    echo "2. Start frontend: cd my-app && npm run dev"
-    echo ""
+    print_status "Installation complete!"
+    print_info "Starting applications..."
+    
+    # Start backend server in background
+    print_info "Starting backend server..."
+    cd server
+    nohup npm start > ../backend.log 2>&1 &
+    BACKEND_PID=$!
+    echo $BACKEND_PID > ../backend.pid
+    
+    # Wait for backend to start
+    sleep 3
+    
+    # Start frontend development server in background  
+    print_info "Starting frontend development server..."
+    cd ../my-app
+    nohup npm run dev > ../frontend.log 2>&1 &
+    FRONTEND_PID=$!
+    echo $FRONTEND_PID > ../frontend.pid
+    
+    cd ..
+    
+    # Wait for frontend to start
+    sleep 5
+    
+    print_status "🎉 Applications are now running!"
     print_status "Application URLs:"
     echo "  Frontend: http://localhost:5174"
     echo "  Backend API: http://localhost:5000/api"
+    echo ""
+    print_info "Process IDs:"
+    echo "  Backend PID: $BACKEND_PID (saved to backend.pid)"
+    echo "  Frontend PID: $FRONTEND_PID (saved to frontend.pid)"
+    echo ""
+    print_info "To stop the applications:"
+    echo "  kill \$(cat backend.pid frontend.pid)"
+    echo ""
+    print_info "Log files:"
+    echo "  Backend: $(pwd)/backend.log"
+    echo "  Frontend: $(pwd)/frontend.log"
 } || {
     print_warning "Simple installation failed. You can run Docker deployment instead:"
     echo "./deploy.sh"
