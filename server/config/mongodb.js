@@ -3,12 +3,15 @@ const mongoose = require('mongoose');
 // MongoDB connection configuration
 const connectDB = async () => {
   try {
-    const connectionString = process.env.MONGODB_URI || 'mongodb://localhost:27017/myapp';
+    const connectionString = process.env.MONGODB_URI || 'mongodb://admin:password123@localhost:27017/myapp?authSource=admin';
+    
+    console.log('Connecting to MongoDB with URI:', connectionString.replace(/:[^:@]*@/, ':***@')); // Hide password in logs
     
     const conn = await mongoose.connect(connectionString, {
       // Remove deprecated options as they're now default in Mongoose 6+
       useNewUrlParser: true,
       useUnifiedTopology: true,
+      authSource: 'admin', // Specify auth source
     });
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);

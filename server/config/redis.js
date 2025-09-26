@@ -8,10 +8,15 @@ const connectRedis = async () => {
   try {
     // Redis connection options
     const redisOptions = {
-      url: process.env.REDIS_URL || 'redis://localhost:6379',
-      // Optional: Add authentication if needed
-      // password: process.env.REDIS_PASSWORD,
-      // database: process.env.REDIS_DB || 0,
+      url: process.env.REDIS_URL || 'redis://:redis123@localhost:6379',
+      // Optional: Add more Redis configuration
+      password: process.env.REDIS_PASSWORD || 'redis123',
+      database: process.env.REDIS_DB || 0,
+      retry_unfulfilled_commands: true,
+      socket: {
+        connectTimeout: 60000,
+        lazyConnect: true,
+      }
     };
 
     // Create Redis client
