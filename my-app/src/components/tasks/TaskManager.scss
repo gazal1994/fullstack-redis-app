@@ -1,0 +1,117 @@
+.task-manager {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 1rem;
+  font-family: "Segoe UI", Roboto, sans-serif;
+}
+
+.task-title {
+  margin: 1rem 0;
+  color: #111827;
+}
+
+.task-input,
+.task-textarea {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #fff;
+
+  &:focus {
+    outline: none;
+    border-color: #1d4ed8;
+    box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15);
+  }
+}
+
+.task-textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.task-button,
+.secondary-btn,
+.danger-btn {
+  width: 100%;
+  padding: 10px;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  margin-top: 6px;
+}
+
+.task-button { background: #1d4ed8; }
+.secondary-btn { background: #6b7280; }
+.danger-btn {
+  background: #dc2626;
+  &:hover { background: #b91c1c; }
+}
+
+.task-list {
+  margin-top: 10px;
+  padding: 0;
+  list-style: none;
+}
+
+.task-item {
+  padding: 10px;
+  margin-bottom: 10px;
+  background: #f3f4f6;
+  border-radius: 6px;
+
+  .task-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: start;
+    gap: 10px;
+    cursor: pointer;
+  }
+
+  .task-checkbox {
+    width: 18px;
+    height: 18px;
+    accent-color: #1d4ed8;
+    margin-top: 2px;
+  }
+
+  .task-info {
+    strong.task-title-text {
+      display: block;
+      margin-bottom: 4px;
+    }
+    p {
+      margin: 0 0 4px;
+      color: #4b5563;
+      font-size: 14px;
+    }
+    .task-status {
+      font-size: 13px;
+      font-weight: 500;
+      &.pending { color: #dc2626; }
+      &.completed { color: #16a34a; }
+    }
+  }
+
+  .task-actions {
+    display: grid;
+    gap: 8px;
+    &.three-cols { grid-template-columns: 1fr 1fr; /* edit, delete */ }
+  }
+}
+
+.task-item.is-completed {
+  opacity: 0.7;
+  background: #eef2ff;
+  .task-title-text,
+  p {
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+    text-decoration-color: #9ca3af;
+  }
+}
