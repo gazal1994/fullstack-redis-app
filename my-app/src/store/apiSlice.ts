@@ -15,24 +15,33 @@ export interface User {
   updatedAt: string;
 }
 
+export interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  completed: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface ApiResponse<T> {
+  success: boolean;
   message: string;
-  data?: T;
+  data: T;
   count?: number;
-  timestamp: string;
 }
 
 // Define the API slice - USERS ONLY
 export const apiSlice = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
-    baseUrl: 'http://localhost:5000/api',
+    baseUrl: '/api',
     prepareHeaders: (headers) => {
       headers.set('Content-Type', 'application/json');
       return headers;
     },
   }),
-  tagTypes: ['User'],
+  tagTypes: ['User', 'Task'],
   endpoints: (builder) => ({
     // 1. GET USERS - Get all users
     getUsers: builder.query<ApiResponse<User[]>, void>({
@@ -74,14 +83,69 @@ export const apiSlice = createApi({
       }),
       invalidatesTags: ['User'],
     }),
+
+    // ============================================================================
+    // TASK ENDPOINTS
+    // ============================================================================
+    
+    // 1. GET TASKS - Get all tasks with optional filtering
+    getTasks: builder.query<ApiResponse<Task[]>, { completed?: boolean } | undefined>({
+      query: (params = {}) => ({
+        url: 'tasks',
+        params,
+      }),
+      providesTags: (result) =>
+        result?.data
+          ? [
+              ...result.data.map(({ id }) => ({ type: 'Task' as const, id })),
+              { type: 'Task', id: 'LIST' },
+            ]
+          : [{ type: 'Task', id: 'LIST' }],
+    }),
+
+    // 2. CREATE TASK - Create new task
+    createTask: builder.mutation<ApiResponse<Task>, { title: string; description?: string }>({
+      query: (taskData) => ({
+        url: 'tasks',
+        method: 'POST',
+        body: taskData,
+      }),
+      invalidatesTags: [{ type: 'Task', id: 'LIST' }],
+    }),
+
+    // 3. UPDATE TASK - Update existing task
+    updateTask: builder.mutation<ApiResponse<Task>, { id: string; data: Partial<Omit<Task, 'id'>> }>({
+      query: ({ id, data }) => ({
+        url: `tasks/${id}`,
+        method: 'PUT',
+        body: data,
+      }),
+      invalidatesTags: (_, __, { id }) => [{ type: 'Task', id }],
+    }),
+
+    // 4. DELETE TASK - Delete task by ID
+    deleteTask: builder.mutation<ApiResponse<Task>, string>({
+      query: (id) => ({
+        url: `tasks/${id}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_, __, id) => [{ type: 'Task', id }],
+    }),
   }),
 });
 
-// Export hooks for the 5 user operations ONLY
+// Export hooks for User and Task operations
 export const {
+  // User hooks
   useGetUsersQuery,        // Get all users
   useGetUserByIdQuery,     // Get single user
   useCreateUserMutation,   // Add/Create user
   useUpdateUserMutation,   // Update user
   useDeleteUserMutation,   // Delete user
+  
+  // Task hooks
+  useGetTasksQuery,        // Get all tasks
+  useCreateTaskMutation,   // Create new task
+  useUpdateTaskMutation,   // Update task
+  useDeleteTaskMutation,   // Delete task
 } = apiSlice;
