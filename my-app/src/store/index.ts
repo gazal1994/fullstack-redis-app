@@ -1,6 +1,7 @@
 import { configureStore } from "@reduxjs/toolkit";
 import { apiSlice } from "./apiSlice";
 import userSlice from "./userSlice";
+import taskSlice from "./taskSlice";
 // import cacheSlice from "./cacheSlice"; // Removed - not using Redis
 
 export const store = configureStore({
@@ -9,6 +10,7 @@ export const store = configureStore({
     [apiSlice.reducerPath]: apiSlice.reducer,
     // Feature slices
     user: userSlice,
+    task: taskSlice,
     // cache: cacheSlice, // Removed - simplified to MongoDB-only operations
   },
   // Adding the api middleware enables caching, invalidation, polling, and other features of RTK Query

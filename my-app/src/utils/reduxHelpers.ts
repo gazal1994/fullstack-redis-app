@@ -1,5 +1,5 @@
 // Redux DevTools Configuration for Development
-import { Task } from '../store/apiSlice';
+import type { Task } from '../store/apiSlice';
 
 // Helper function to log Redux actions in development
 export const logReduxAction = (actionType: string, payload?: any) => {
