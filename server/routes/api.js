@@ -1,13 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const { User } = require('../models');
+const { User, Task } = require('../models');
 
 // GET /api - API info
 router.get('/', (req, res) => {
   res.json({
-    message: 'User Management API',
+    message: 'Full Stack Task & User Management API',
     version: '1.0.0',
     endpoints: {
+      tasks: {
+        'GET /api/tasks': 'Get all tasks',
+        'POST /api/tasks': 'Create new task',
+        'PUT /api/tasks/:id': 'Update task',
+        'DELETE /api/tasks/:id': 'Delete task'
+      },
       users: {
         'GET /api/users': 'Get all users',
         'GET /api/users/:id': 'Get user by ID',
@@ -182,6 +188,190 @@ router.delete('/users/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to delete user'
+    });
+  }
+});
+
+// =============================================================================
+// TASK API ENDPOINTS
+// =============================================================================
+
+// 1. GET /api/tasks - Get all tasks
+router.get('/tasks', async (req, res) => {
+  try {
+    const { completed, sort = '-createdAt' } = req.query;
+    
+    let query = {};
+    if (completed !== undefined) {
+      query.completed = completed === 'true';
+    }
+    
+    const tasks = await Task.find(query).sort(sort);
+    
+    res.json({
+      success: true,
+      message: 'Tasks fetched successfully',
+      data: tasks,
+      count: tasks.length
+    });
+  } catch (error) {
+    console.error('Error fetching tasks:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch tasks'
+    });
+  }
+});
+
+// 2. POST /api/tasks - Create new task
+router.post('/tasks', async (req, res) => {
+  try {
+    const { title, description } = req.body;
+    
+    if (!title || !title.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Task title is required'
+      });
+    }
+    
+    const taskData = {
+      title: title.trim(),
+      completed: false
+    };
+    
+    if (description && description.trim()) {
+      taskData.description = description.trim();
+    }
+    
+    const task = new Task(taskData);
+    await task.save();
+    
+    res.status(201).json({
+      success: true,
+      message: 'Task created successfully',
+      data: task
+    });
+  } catch (error) {
+    console.error('Error creating task:', error);
+    
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: Object.values(error.errors).map(err => err.message)
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create task'
+    });
+  }
+});
+
+// 3. PUT /api/tasks/:id - Update task
+router.put('/tasks/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, completed } = req.body;
+    
+    // Validate ObjectId format
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid task ID format'
+      });
+    }
+    
+    const updateData = {};
+    
+    if (title !== undefined) {
+      if (!title.trim()) {
+        return res.status(400).json({
+          success: false,
+          error: 'Task title cannot be empty'
+        });
+      }
+      updateData.title = title.trim();
+    }
+    
+    if (description !== undefined) {
+      updateData.description = description.trim() || undefined;
+    }
+    
+    if (completed !== undefined) {
+      updateData.completed = Boolean(completed);
+    }
+    
+    const task = await Task.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+    
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        error: 'Task not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Task updated successfully',
+      data: task
+    });
+  } catch (error) {
+    console.error('Error updating task:', error);
+    
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: Object.values(error.errors).map(err => err.message)
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update task'
+    });
+  }
+});
+
+// 4. DELETE /api/tasks/:id - Delete task
+router.delete('/tasks/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Validate ObjectId format
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid task ID format'
+      });
+    }
+    
+    const task = await Task.findByIdAndDelete(id);
+    
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        error: 'Task not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Task deleted successfully',
+      data: task
+    });
+  } catch (error) {
+    console.error('Error deleting task:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete task'
     });
   }
 });

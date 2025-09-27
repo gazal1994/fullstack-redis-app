@@ -115,3 +115,43 @@
     text-decoration-color: #9ca3af;
   }
 }
+
+// Loading and Error States
+.loading-state,
+.error-state {
+  text-align: center;
+  padding: 2rem;
+  margin: 1rem 0;
+  border-radius: 8px;
+}
+
+.loading-state {
+  background: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.error-state {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.error-message {
+  color: #dc2626;
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+.retry-button {
+  background: #dc2626;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  
+  &:hover {
+    background: #b91c1c;
+  }
+}

@@ -3,9 +3,9 @@ import type { Task } from "./types";
 
 interface Props {
   task: Task;
-  onUpdate: (id: number, updates: { title?: string; description?: string }) => void;
-  onToggleComplete: (id: number, completed: boolean) => void;
-  onDelete: (id: number) => void;
+  onUpdate: (id: string, updates: { title?: string; description?: string }) => void;
+  onToggleComplete: (id: string, completed: boolean) => void;
+  onDelete: (id: string) => void;
 }
 
 const TaskItem: React.FC<Props> = ({ task, onUpdate, onToggleComplete, onDelete }) => {
